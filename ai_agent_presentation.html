@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What Is an AI Agent? — A Selig Demo</title>
+<style>
+  :root {
+    --selig-blue: #004a99;
+    --selig-blue-dark: #003670;
+    --selig-blue-light: #e8f0fa;
+    --ink: #1a1a1a;
+    --ink-soft: #555;
+    --rule: #e0e4e8;
+    --bg: #ffffff;
+    --bg-soft: #f5f7f9;
+    --accent-warn: #b8530a;
+    --accent-good: #1d6b3a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--ink);
+    background: var(--bg-soft);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+  }
+
+  .deck { position: relative; }
+
+  .slide {
+    display: none;
+    width: 100vw;
+    height: 100vh;
+    padding: 5vh 6vw;
+    background: var(--bg);
+    overflow-y: auto;
+    position: relative;
+  }
+
+  .slide.active { display: flex; flex-direction: column; }
+
+  .slide-number {
+    position: absolute;
+    top: 2.5vh;
+    right: 3vw;
+    font-size: 12px;
+    color: var(--ink-soft);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .slide-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--selig-blue);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  h1 {
+    font-size: clamp(32px, 4.5vw, 56px);
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--ink);
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.01em;
+  }
+
+  h2 {
+    font-size: clamp(24px, 3vw, 38px);
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 1rem;
+    letter-spacing: -0.005em;
+  }
+
+  h3 {
+    font-size: clamp(16px, 1.4vw, 20px);
+    font-weight: 600;
+    color: var(--selig-blue);
+    margin-bottom: 0.5rem;
+  }
+
+  p { font-size: clamp(15px, 1.2vw, 18px); color: var(--ink-soft); margin-bottom: 1rem; }
+  p.lead { font-size: clamp(18px, 1.5vw, 22px); color: var(--ink); }
+
+  ul, ol { margin: 0.5rem 0 1rem 1.5rem; }
+  li { font-size: clamp(14px, 1.1vw, 17px); color: var(--ink); margin-bottom: 0.4rem; }
+  li strong { color: var(--ink); }
+
+  code, .mono { font-family: 'JetBrains Mono', 'Consolas', 'Courier New', monospace; font-size: 0.9em; }
+
+  .big-statement {
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .big-statement em { font-style: normal; color: var(--selig-blue); }
+
+  .side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1rem; }
+  .side-by-side > div { background: var(--bg-soft); padding: 1.5rem; border-radius: 8px; border-left: 4px solid var(--rule); }
+  .side-by-side .script { border-left-color: #c84a4a; }
+  .side-by-side .agent { border-left-color: var(--selig-blue); }
+  .side-by-side h3 { margin-bottom: 0.75rem; }
+
+  .layers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-top: 1rem; }
+  .layer { background: var(--bg-soft); padding: 1rem; border-radius: 6px; border-top: 3px solid var(--selig-blue); }
+  .layer .num { font-size: 11px; color: var(--selig-blue); font-weight: 600; letter-spacing: 0.1em; }
+  .layer h4 { font-size: 15px; font-weight: 700; margin: 0.25rem 0 0.4rem; }
+  .layer p { font-size: 13px; margin: 0; color: var(--ink-soft); line-height: 1.4; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 14px; }
+  th { text-align: left; padding: 0.75rem 0.5rem; border-bottom: 2px solid var(--selig-blue); color: var(--ink); font-weight: 700; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; }
+  td { padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--rule); vertical-align: top; color: var(--ink); }
+  td:first-child { font-weight: 600; color: var(--selig-blue); }
+
+  .ladder { display: grid; grid-template-columns: 60px 1fr 1fr 1fr; gap: 0; margin-top: 1rem; border-top: 1px solid var(--rule); }
+  .ladder-row { display: contents; }
+  .ladder-row > div { padding: 1rem 0.75rem; border-bottom: 1px solid var(--rule); font-size: 14px; }
+  .ladder-row .lvl { background: var(--selig-blue); color: white; font-weight: 700; font-size: 20px; text-align: center; border-radius: 0; border-bottom: 1px solid var(--selig-blue-dark); }
+  .ladder-row .what { font-weight: 600; }
+  .ladder-row .tools { font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 12px; color: var(--ink-soft); }
+  .ladder-row .diff { color: var(--ink-soft); }
+
+  .quote {
+    background: var(--selig-blue-light);
+    padding: 1rem 1.25rem;
+    border-left: 3px solid var(--selig-blue);
+    border-radius: 4px;
+    font-style: italic;
+    font-size: 15px;
+    color: var(--ink);
+    margin: 0.75rem 0;
+  }
+
+  .tool-call {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    background: #1a1a1a;
+    color: #a8d8ff;
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    font-size: 13px;
+    display: inline-block;
+    margin: 0.2rem 0;
+  }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; margin-top: 1rem; }
+  .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 1rem; }
+  .three-col > div { padding: 1.25rem; background: var(--bg-soft); border-radius: 6px; }
+  .three-col h3 { font-size: 16px; margin-bottom: 0.5rem; }
+  .three-col p { font-size: 14px; margin: 0; }
+
+  .footer-note {
+    margin-top: auto;
+    padding-top: 1.5rem;
+    font-size: 12px;
+    color: var(--ink-soft);
+    border-top: 1px solid var(--rule);
+  }
+
+  /* Title slide */
+  .title-slide { justify-content: center; align-items: flex-start; padding: 0 6vw; }
+  .title-slide .brand { font-size: 13px; font-weight: 600; color: var(--selig-blue); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 2rem; }
+  .title-slide h1 { font-size: clamp(48px, 7vw, 96px); line-height: 1; margin-bottom: 1.5rem; }
+  .title-slide p.subtitle { font-size: clamp(18px, 1.8vw, 24px); color: var(--ink-soft); max-width: 720px; }
+  .title-slide .meta { margin-top: 3rem; font-size: 13px; color: var(--ink-soft); }
+
+  /* Navigation */
+  .nav {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    background: rgba(255,255,255,0.9);
+    padding: 8px 12px;
+    border-radius: 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    z-index: 100;
+  }
+  .nav button {
+    border: none; background: transparent; cursor: pointer; padding: 4px 10px;
+    font-size: 12px; color: var(--ink-soft); border-radius: 12px;
+  }
+  .nav button:hover { background: var(--bg-soft); }
+  .nav .progress { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; font-size: 12px; padding: 4px 8px; }
+
+  .key-hint { position: fixed; bottom: 16px; right: 16px; font-size: 11px; color: var(--ink-soft); background: rgba(255,255,255,0.9); padding: 4px 10px; border-radius: 12px; z-index: 100; }
+
+  @media print {
+    body { background: white; }
+    .slide { display: flex !important; flex-direction: column; page-break-after: always; height: 100vh; }
+    .nav, .key-hint { display: none; }
+  }
+
+  /* Emphasis helpers */
+  .emph { color: var(--selig-blue); font-weight: 700; }
+  .bad { color: #c84a4a; font-weight: 600; }
+  .good { color: var(--accent-good); font-weight: 600; }
+
+  .callout { background: var(--selig-blue-light); padding: 1rem 1.25rem; border-radius: 6px; margin-top: 1rem; border-left: 3px solid var(--selig-blue); }
+  .callout p { font-size: 14px; margin: 0; color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+<!-- SLIDE 1: WHAT IS AN AI AGENT? + THE CORE SHIFT -->
+<section class="slide active">
+  <div class="slide-number">01</div>
+  <div class="slide-label">The one idea</div>
+  <h1>What Is an AI Agent?</h1>
+  <p class="lead" style="max-width: 900px; margin-bottom: 2.5rem;">Beyond scripts and workflows — how modern AI agents reason, act, and scale where rule-based automation breaks down.</p>
+  <div class="big-statement">
+    Scripts follow <em>paths</em>.<br>
+    Agents choose <em>paths</em>.
+  </div>
+  <p class="lead" style="margin-top: 2rem; max-width: 860px;">
+    A workflow is a decision tree drawn at design time — every branch must be anticipated. An agent is given tools and a goal, and decides at runtime which tool to call, with what arguments, in what order, and when to stop.
+  </p>
+  <div class="callout" style="max-width: 860px;">
+    <p>If nothing else from this deck sticks, this should: <strong>the decision of what to do next moves from the developer (at design time) to the agent (at runtime).</strong></p>
+  </div>
+</section>
+
+<!-- SLIDE 3: WHAT IS AN AGENT -->
+<section class="slide">
+  <div class="slide-number">02</div>
+  <div class="slide-label">Definition</div>
+  <h1>An agent = LLM + Tools + Loop.</h1>
+  <div class="three-col">
+    <div>
+      <h3>LLM (the reasoner)</h3>
+      <p>A large language model that reads the situation and decides what to do next. It's the brain — the part that handles messy input and composes multi-step plans.</p>
+    </div>
+    <div>
+      <h3>Tools (the action surface)</h3>
+      <p>Functions the model can call: query a database, send an email, page a human, create a CRM lead. Each tool is a well-defined capability the agent can choose to invoke.</p>
+    </div>
+    <div>
+      <h3>Loop (the runtime)</h3>
+      <p>Plan → call a tool → read the result → decide whether to stop, call another tool, or ask the user → repeat. The loop is what people miss — a chatbot that answers once is <em>not</em> an agent.</p>
+    </div>
+  </div>
+  <div class="callout" style="margin-top: 2rem;">
+    <p><strong>Simple test:</strong> if your automation does one LLM call and stops, it's a chatbot. If it calls tools, reads results, and chooses its next step, it's an agent.</p>
+  </div>
+</section>
+
+<!-- SLIDE 4: THE AGENT LOOP -->
+<section class="slide">
+  <div class="slide-number">03</div>
+  <div class="slide-label">The runtime in pictures</div>
+  <h1>The agent loop.</h1>
+  <div style="margin-top: 2rem; font-family: 'JetBrains Mono', monospace; font-size: clamp(14px, 1.1vw, 18px); line-height: 2; background: var(--bg-soft); padding: 2rem; border-radius: 8px;">
+<pre style="margin:0; font-family: inherit; color: var(--ink);">
+  USER MESSAGE
+       │
+       ▼
+  ┌─────────────┐
+  │    PLAN     │  ← LLM reads context, decides next action
+  └─────────────┘
+       │
+       ▼
+  ┌─────────────┐
+  │    ACT      │  ← Call a tool  (check_inventory, create_crm_lead, ...)
+  └─────────────┘
+       │
+       ▼
+  ┌─────────────┐
+  │  OBSERVE    │  ← Read the tool result
+  └─────────────┘
+       │
+       ▼
+  ┌─────────────┐
+  │   DECIDE    │  ── done? → reply to user
+  └─────────────┘       │
+       │                └── not done? → back to PLAN
+       ▼
+   REPLY TO USER
+</pre>
+  </div>
+  <p style="margin-top: 1.5rem;">A single customer message can trigger <strong>zero, one, or many</strong> tool calls. The agent decides.</p>
+</section>
+
+<!-- SLIDE 5: SCRIPTS VS AGENTS -->
+<section class="slide">
+  <div class="slide-number">04</div>
+  <div class="slide-label">Where scripts break</div>
+  <h1>Scripts vs. agents — the same Selig queries.</h1>
+  <table>
+    <thead>
+      <tr><th style="width: 28%;">Customer message</th><th style="width: 36%;">Scripted workflow</th><th style="width: 36%;">AI agent</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>"Hot-fill acidic sauce, pH 3.8, HDPE 38mm, food-grade, recyclable preferred."</td>
+        <td class="diff">Needs intent classifier + entity extractors for pH / container / closure / regulatory / sustainability, then a rules engine. Adding "alkaline" later = new branch.</td>
+        <td class="diff">Reads the sentence, retrieves datasheets, reasons about acid resistance + HDPE bonding, excludes PVDC for recyclability. One turn, with justification.</td>
+      </tr>
+      <tr>
+        <td>"we hav a issue wif the oenoseel on our pinot, few bottles leking"</td>
+        <td class="diff"><span class="bad">Keyword match fails.</span> "oenoseel" and "leking" aren't in the vocabulary. Routes to generic FAQ or "I don't understand."</td>
+        <td class="diff"><span class="good">Just works.</span> Reads intent (quality complaint, OenoSeal line, wine application, post-install timeframe) and triages.</td>
+      </tr>
+      <tr>
+        <td>"Email me the EPE 30 spec AND 500 samples by Tuesday AND what's MOQ?"</td>
+        <td class="diff">Assumes one intent per turn. Drops two of the three, or forces user through three forms.</td>
+        <td class="diff">Decomposes into parallel tool calls: <span class="mono">send_spec</span>, <span class="mono">request_sample</span>, <span class="mono">lookup_moq</span>.</td>
+      </tr>
+      <tr>
+        <td>Turn 2: "Switch that to the second one, add a spec sheet."</td>
+        <td class="diff">Brittle slot-filling. "The second one" resolves to nothing. Re-prompts the user.</td>
+        <td class="diff">Holds prior turn in context. "The second one" = Safe-Gard Plus SG-735. Done.</td>
+      </tr>
+      <tr>
+        <td>"Recyclable food-grade — but NOT PVDC or aluminum foil."</td>
+        <td class="diff"><span class="bad">Negation is a classic failure mode.</span> Keyword search returns PVDC options anyway.</td>
+        <td class="diff">Handles the constraint natively.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- SLIDE 6: ANATOMY -->
+<section class="slide">
+  <div class="slide-number">05</div>
+  <div class="slide-label">How it's built</div>
+  <h1>Anatomy of the Selig agent.</h1>
+  <div class="layers">
+    <div class="layer">
+      <div class="num">LAYER 1</div>
+      <h4>Model</h4>
+      <p>Gemini / Claude / GPT. Swappable in one config line. Tune cost vs. quality.</p>
+    </div>
+    <div class="layer">
+      <div class="num">LAYER 2</div>
+      <h4>Prompt</h4>
+      <p>Role, policies, steering. "Never quote prices." "Correct MVTR/GTR units." One sentence = one policy.</p>
+    </div>
+    <div class="layer">
+      <div class="num">LAYER 3</div>
+      <h4>Knowledge</h4>
+      <p>Curated wiki (15 files) + TF-IDF retrieval over 110 datasheets. Agent decides what to pull per turn.</p>
+    </div>
+    <div class="layer">
+      <div class="num">LAYER 4</div>
+      <h4>Tools</h4>
+      <p>Functions the agent can call — CRM, ERP, email, Slack, quote generator. Each ~30 lines of code.</p>
+    </div>
+    <div class="layer">
+      <div class="num">LAYER 5</div>
+      <h4>Skills / sub-agents</h4>
+      <p>Specialist agents: QuoteBuilder, RegulatoryCheck, ComplaintTriage. Compose like functions.</p>
+    </div>
+    <div class="layer">
+      <div class="num">LAYER 6</div>
+      <h4>Memory</h4>
+      <p>Session (this chat) + per-customer (Acme uses SG-733) + org-level (common questions).</p>
+    </div>
+    <div class="layer">
+      <div class="num">LAYER 7</div>
+      <h4>Loop / runtime</h4>
+      <p>The plan → act → observe → decide cycle. Without this, it's just a chatbot.</p>
+    </div>
+    <div class="layer" style="border-top-color: var(--accent-warn);">
+      <div class="num" style="color: var(--accent-warn);">LAYER 8</div>
+      <h4>Guardrails</h4>
+      <p>Permissions, approval gates, audit logs, evals. Production requires this.</p>
+    </div>
+  </div>
+  <p style="margin-top: 1.5rem; font-size: 14px;">Today's Selig chatbot has layers 1–3. Layers 4–8 are the growth path.</p>
+</section>
+
+<!-- SLIDE 7: PROMPT AS POLICY -->
+<section class="slide">
+  <div class="slide-number">06</div>
+  <div class="slide-label">Layer 2 deep dive</div>
+  <h1>Prompt as policy — a live example.</h1>
+  <p class="lead">Selig's original datasheets have a <strong>unit typo</strong>: MVTR and GTR Oxygen values are swapped in the PDFs.</p>
+
+  <div class="two-col" style="margin-top: 1rem;">
+    <div>
+      <h3>Script world</h3>
+      <ul>
+        <li>Regex every extracted MVTR value</li>
+        <li>Regex every extracted GTR value</li>
+        <li>Unit-conversion module</li>
+        <li>Test case per product family</li>
+        <li>Fragile — breaks on new PDF formats</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Agent world</h3>
+      <div class="quote">
+        "MVTR must be expressed as gm/100 sq.in./24hrs (it is a mass value). GTR Oxygen must be expressed as cc/100 sq.in./24hrs (it is a volume value). Silently correct and note 'units corrected from source document'."
+      </div>
+      <p style="font-size: 13px;">— Four lines in <span class="mono">selig_app.py</span>. Zero regex. Works on every product family, including new ones.</p>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top: 1.5rem;">
+    <p>Other policies added the same way: <em>"Never quote prices," "Flag pharma for compliance," "Pivot tactfully on competitor mentions," "Always close with a next step."</em> Each is one sentence. In a script, each is a module.</p>
+  </div>
+</section>
+
+<!-- SLIDE 8: TOOLS -->
+<section class="slide">
+  <div class="slide-number">07</div>
+  <div class="slide-label">Layer 4 deep dive</div>
+  <h1>Tools — the agent's action surface.</h1>
+  <p>Each tool is a named function with typed arguments. The agent picks which to call based on the conversation.</p>
+
+  <div class="two-col">
+    <div>
+      <h3>Information tools (read)</h3>
+      <ul>
+        <li><span class="mono">lookup_datasheet(product)</span></li>
+        <li><span class="mono">check_inventory(sku, qty)</span></li>
+        <li><span class="mono">lookup_customer(email)</span></li>
+        <li><span class="mono">get_order_status(po)</span></li>
+        <li><span class="mono">chemical_compatibility(substance, product)</span></li>
+        <li><span class="mono">regulatory_check(product, market)</span></li>
+        <li><span class="mono">lookup_competitor_equivalent(product)</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Action tools (write)</h3>
+      <ul>
+        <li><span class="mono">send_spec_email(product, recipient)</span></li>
+        <li><span class="mono">request_sample(product, qty, addr, deadline)</span></li>
+        <li><span class="mono">generate_quote_draft(...)</span></li>
+        <li><span class="mono">create_crm_lead(...)</span></li>
+        <li><span class="mono">open_qa_ticket(lot, symptom, severity)</span></li>
+        <li><span class="mono">escalate_to_slack(team, priority, context)</span></li>
+        <li><span class="mono">schedule_meeting(rep, customer, topic)</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top: 1.5rem;">
+    <p><strong>Adding capability:</strong> in an agent, you add a tool to the registry. In a script, you add intents, routes, branches, and regression tests for every existing flow.</p>
+  </div>
+</section>
+
+<!-- SLIDE 9: CAPABILITY LADDER OVERVIEW -->
+<section class="slide">
+  <div class="slide-number">08</div>
+  <div class="slide-label">Demo spine</div>
+  <h1>Capability ladder — the same chatbot, five levels.</h1>
+  <div class="ladder">
+    <div class="ladder-row"><div class="lvl">1</div><div class="what">Knowledge</div><div class="diff">Answers product questions from wiki + datasheets.</div><div class="tools">(no tools)</div></div>
+    <div class="ladder-row"><div class="lvl">2</div><div class="what">Qualify</div><div class="diff">Detects intent, tiers, CRM-logs qualified leads silently.</div><div class="tools">create_crm_lead, log_interaction</div></div>
+    <div class="ladder-row"><div class="lvl">3</div><div class="what">Transact</div><div class="diff">Checks stock, requests samples, drafts quotes, emails specs.</div><div class="tools">check_inventory, send_spec_email, request_sample, generate_quote_draft</div></div>
+    <div class="ladder-row"><div class="lvl">4</div><div class="what">Escalate</div><div class="diff">Detects urgency & sentiment, pages humans with structured context.</div><div class="tools">escalate_to_slack, open_qa_ticket, schedule_meeting</div></div>
+    <div class="ladder-row"><div class="lvl">5</div><div class="what">Proactive</div><div class="diff">Runs on a schedule. Drafts follow-ups, flags churn risk, writes content.</div><div class="tools">cron + all of the above</div></div>
+  </div>
+  <p style="margin-top: 1.5rem; font-size: 14px;">Today we're at Level 1. Levels 2–4 are weeks of work, not months. Level 5 is the north star.</p>
+</section>
+
+<!-- SLIDE 10: LEVEL 1 -->
+<section class="slide">
+  <div class="slide-number">09</div>
+  <div class="slide-label">Level 1 · Knowledge</div>
+  <h1>Level 1 — answer what we know.</h1>
+  <p class="lead">Where we are today. Pure retrieval + reasoning, no tools.</p>
+  <h3 style="margin-top: 1.5rem;">Real scenarios</h3>
+  <ul>
+    <li>"What's the MVTR of ALPHASEAL Woodpulp PET 1.60mm?" → pulls value, applies unit correction silently.</li>
+    <li>"Difference between Lift 'n' Peel LPF, LPT, and LPTZD?" → comparison from wiki.</li>
+    <li>"PVDC-free options for pharma with good moisture barrier?" → reasons across wiki, excludes PVDC SKUs, recommends foil-faced alternatives.</li>
+    <li>"Which liners are EU food-contact compliant?" → aggregated answer across product families.</li>
+  </ul>
+  <div class="callout">
+    <p><strong>Why this is already non-trivial:</strong> each question mixes fuzzy language, negation, and multi-family reasoning. A keyword-based FAQ would miss half of them. This is the floor of what "AI" buys you — the ceiling is four more rungs up.</p>
+  </div>
+</section>
+
+<!-- SLIDE 11: LEVEL 2 -->
+<section class="slide">
+  <div class="slide-number">10</div>
+  <div class="slide-label">Level 2 · Qualify</div>
+  <h1>Level 2 — detect intent, qualify leads.</h1>
+  <p class="lead">The agent watches for signals and silently feeds the CRM.</p>
+  <h3 style="margin-top: 1.5rem;">Real scenarios</h3>
+  <ul>
+    <li><strong>Tier-1 detection.</strong> Visitor from <span class="mono">@ab-inbev.com</span> → flags enterprise, routes to enterprise AE at session end.</li>
+    <li><strong>BANT qualification.</strong> "5M units/year, launching Q3, currently with a domestic supplier" → fills budget/timing/need, scores lead automatically.</li>
+    <li><strong>Student filter.</strong> "I'm writing a thesis" → tagged educational, answers generously, <em>doesn't</em> flood the CRM.</li>
+    <li><strong>Evaluation mode.</strong> Same visitor asks about Lift 'n' Peel, then Uni-Gard, then DeltaSeal → recognizes comparison-shopping, alerts AE: "likely competitive situation."</li>
+    <li><strong>Stuck-deal detection.</strong> Same technical question from the same email twice in 3 weeks → flags "stalled opportunity, no rep follow-up."</li>
+  </ul>
+  <div class="callout">
+    <p><span class="bad">What scripts choke on:</span> reading between the lines of free-form chat. Rules-based triggers are either too loose (everyone's Tier-1) or too tight (everyone's a student).</p>
+  </div>
+</section>
+
+<!-- SLIDE 12: LEVEL 3 -->
+<section class="slide">
+  <div class="slide-number">11</div>
+  <div class="slide-label">Level 3 · Transact</div>
+  <h1>Level 3 — do work on the customer's behalf.</h1>
+  <h3 style="margin-top: 1rem;">Real scenarios</h3>
+  <ul>
+    <li><strong>One-shot sample request.</strong> "200 samples of Uni-Foam EPE 30 to our Dallas plant" → validates SKU, pulls shipping address from CRM, checks deadline feasibility, submits, returns tracking.</li>
+    <li><strong>Quote draft.</strong> "Rough quote for 500K Top Tab 2 TT2-518, annual" → drafts quote, emails rep for approval, replies to customer: "Jane will send a firm quote today." <span class="emph">Human-in-the-loop by design.</span></li>
+    <li><strong>Compliance letter on demand.</strong> "I need a 21 CFR 175 letter for Uni-Foam EPE 42_S" → fills template, generates PDF, emails signed copy.</li>
+    <li><strong>Chemical compatibility.</strong> "Is CORELEN PE 2020 compatible with d-limonene?" → queries chem DB, warns on terpene sensitivity, suggests TRESYLENE 4015 PET, offers samples of both.</li>
+    <li><strong>Regulatory scoping.</strong> "Launching in Brazil — which of my SKUs stay compliant?" → cross-references ANVISA, flags gaps, suggests replacements.</li>
+  </ul>
+</section>
+
+<!-- SLIDE 13: LEVEL 4 -->
+<section class="slide">
+  <div class="slide-number">12</div>
+  <div class="slide-label">Level 4 · Escalate</div>
+  <h1>Level 4 — sentiment &amp; human handoff.</h1>
+  <h3 style="margin-top: 1rem;">Real scenarios</h3>
+  <ul>
+    <li><strong>Quality incident.</strong> "URGENT — 40% pinholes on lot 8842, line stopped, losing $30K/hour" → pages QA on-call via Slack in 5 seconds, pre-fills ticket with lot/line/product, sends first-response acknowledgement to customer.</li>
+    <li><strong>Frustration.</strong> "This is the third time I've asked" → escalates with apology, pulls prior conversations, tags CSAT risk.</li>
+    <li><strong>Retention risk.</strong> "We're evaluating switching suppliers" → responds respectfully, gathers reasons, notifies account manager — <span class="emph">without pushing back</span>.</li>
+    <li><strong>Structured complaint intake.</strong> Seal failure? → walks customer through lot, fill temp, pH, closure type, failure timeline; opens QA ticket with all fields populated.</li>
+    <li><strong>Language handoff.</strong> French-Canadian customer with a regulatory question → answers in French, routes to Bradford, ON rep.</li>
+  </ul>
+  <div class="callout">
+    <p><span class="bad">What scripts choke on:</span> the difference between "I'm frustrated but engaged" and "about to switch suppliers" is 10 points of response priority. Rules-based sentiment is notoriously bad at this nuance.</p>
+  </div>
+</section>
+
+<!-- SLIDE 14: LEVEL 5 -->
+<section class="slide">
+  <div class="slide-number">13</div>
+  <div class="slide-label">Level 5 · Proactive</div>
+  <h1>Level 5 — agents working while nobody's watching.</h1>
+  <p class="lead">No customer on the other end. The agent does work on a schedule.</p>
+  <h3 style="margin-top: 1rem;">Real scenarios</h3>
+  <ul>
+    <li><strong>Nightly sample follow-up.</strong> Scans samples unacknowledged for 14 days, drafts personalized follow-ups citing the specific product sampled. Queues for AE approval.</li>
+    <li><strong>Weekly wiki gap analysis.</strong> "7 customers asked about Circumvent™ venting, no wiki page exists" → drafts a new page, flags for review.</li>
+    <li><strong>Monthly regulatory watch.</strong> Scans FDA / EU / ANVISA updates, flags Selig products affected, drafts advisories.</li>
+    <li><strong>Quarterly churn-risk report.</strong> Combines CRM notes + chat sentiment history + order volume → ranked list with "probable reason" per account.</li>
+    <li><strong>Live inventory reconciliation.</strong> "This $2M quote for TRESYLENE 2520 will shortfall production if it closes this week" — pings production and AE simultaneously.</li>
+  </ul>
+  <div class="callout">
+    <p><span class="bad">What scripts choke on:</span> everything here requires drafting and judgment, not rule-matching. Scripts can schedule reports. They can't draft a customer-specific follow-up email.</p>
+  </div>
+</section>
+
+<!-- SLIDE 15: WHY POWERFUL -->
+<section class="slide">
+  <div class="slide-number">14</div>
+  <div class="slide-label">Why it matters</div>
+  <h1>Six reasons agents are powerful — concretely.</h1>
+  <div class="three-col">
+    <div>
+      <h3>1. Unstructured input is free</h3>
+      <p>Typos, synonyms, mixed languages, copy-pasted email noise. "alfaseel 1.6" resolves to ALPHASEAL 1.60mm. No new preprocessing module.</p>
+    </div>
+    <div>
+      <h3>2. New capability = add a tool</h3>
+      <p>Week 1 answers questions. Week 2 adds <span class="mono">check_inventory</span>. Week 3 adds <span class="mono">request_sample</span>. No rebuild, no regression.</p>
+    </div>
+    <div>
+      <h3>3. NL is the UI for every system</h3>
+      <p>"How many OenoSeal samples shipped to Napa last quarter?" — one agent, every backend. No new dashboard.</p>
+    </div>
+    <div>
+      <h3>4. Graceful degradation</h3>
+      <p>ERP down? Agent says "I'll check stock in an hour." Missing spec field? "Routing to tech team." Scripts die at the first unexpected state.</p>
+    </div>
+    <div>
+      <h3>5. Compositional planning</h3>
+      <p>Five sub-tasks invented at runtime — filter, compare, generate PDF, email, log. Scripts require that sequence to be anticipated.</p>
+    </div>
+    <div>
+      <h3>6. Policy in prose</h3>
+      <p>"Never quote prices; flag pharma; pivot on competitor mentions" — three sentences vs. three middleware modules.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 16: WHAT SCRIPTS CAN'T DO -->
+<section class="slide">
+  <div class="slide-number">15</div>
+  <div class="slide-label">The closing argument</div>
+  <h1>What scripts fundamentally can't do.</h1>
+  <p>Ten shapes of problem that break rule-based automation. Each is routine for an agent.</p>
+  <table style="margin-top: 1rem;">
+    <thead><tr><th style="width: 30%;">Problem shape</th><th>Selig example</th></tr></thead>
+    <tbody>
+      <tr><td>Intent fuzz</td><td>"Send a spec AND samples AND pricing" — one message, three intents.</td></tr>
+      <tr><td>Long-tail questions</td><td>80% of real traffic is NOT in your top-50 anticipated intents.</td></tr>
+      <tr><td>Cross-domain reasoning</td><td>"Is this liner compatible with pH 3.8 at 185°F?" — chemistry + datasheet + application.</td></tr>
+      <tr><td>Context carryover</td><td>"Switch that to the second one" — breaks state machines.</td></tr>
+      <tr><td>Error recovery</td><td>"Did you mean ISCT U5 instead of ISTC U5?" vs. scripts' "Invalid input."</td></tr>
+      <tr><td>Graceful handoff</td><td>When to escalate, with what context — judgment, not threshold.</td></tr>
+      <tr><td>Policy through prose</td><td>"Never quote prices" — one line vs. ten modules.</td></tr>
+      <tr><td>Zero-redeploy updates</td><td>New product family → add a wiki page. Script: retrain, add routes, regress.</td></tr>
+      <tr><td>Personalization</td><td>"Acme always uses SG-733 — stay in that family."</td></tr>
+      <tr><td>Explainability</td><td>"Why did you recommend TRESYLENE 4015 PET?" — agent explains; script just returns.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- SLIDE 17: LIVE DEMO -->
+<section class="slide">
+  <div class="slide-number">16</div>
+  <div class="slide-label">Live demo</div>
+  <h1>The Selig agent — live.</h1>
+  <p class="lead">Five questions, one chat session. Watch for the <span class="mono" style="background: #1a1a1a; color: #a8d8ff; padding: 2px 6px; border-radius: 3px;">🔧 TOOL:</span> lines — that's the agent deciding to act.</p>
+  <p style="font-size: 13px; color: var(--ink-soft); margin-top: 0.5rem;">Sidebar set to Company = Acme Foods · Email = buyer@ab-inbev.com · Role = Head of Packaging</p>
+
+  <ol style="margin-top: 1rem;">
+    <li><strong>Simple knowledge.</strong> "Difference between Lift 'n' Peel LPF, LPT, and LPTZD? Which for premium wine?"</li>
+    <li><strong>Multi-constraint + qualification.</strong> "Hot-fill acidic sauce, pH 3.8, HDPE 38mm, ~8M units annually, Q3 launch. What do you recommend?"</li>
+    <li><strong>Follow-up (multi-turn).</strong> "What if we switched to glass bottles with a twist-off cap?"</li>
+    <li><strong>Multi-intent + tools.</strong> "Email me the EPE 30 spec, arrange 500 samples to Dallas by Tuesday, and pricing at 500K annual."</li>
+    <li><strong>Urgent quality.</strong> "URGENT — pinholes on 40% of our run on lot 8842 of Safe-Gard SG-657. Line stopped. Losing $30K/hour."</li>
+  </ol>
+
+  <div class="callout">
+    <p><strong>Watch for in the demo:</strong> (a) Q4 emits multiple tool calls in parallel; (b) Q5 triggers <span class="mono">escalate_to_slack</span> and <span class="mono">open_qa_ticket</span> within the first sentence; (c) Q3 explicitly references Q2 — multi-turn context works; (d) at no point does the agent quote a real price.</p>
+  </div>
+</section>
+
+<!-- SLIDE 18: CAVEATS -->
+<section class="slide">
+  <div class="slide-number">17</div>
+  <div class="slide-label">Be honest</div>
+  <h1>Caveats — where agents shouldn't go.</h1>
+  <div class="two-col">
+    <div>
+      <h3>Real limitations</h3>
+      <ul>
+        <li><strong>Non-deterministic.</strong> Not for safety-critical control loops. Keep scripts for verified operations.</li>
+        <li><strong>Latency &amp; cost per turn</strong> are higher than a hardcoded API call. Matters at volume.</li>
+        <li><strong>Needs guardrails:</strong> tool permissions, approval gates, audit logs, evals.</li>
+        <li><strong>Hallucinations</strong> happen. Ground in real data; test continuously.</li>
+        <li><strong>Change management.</strong> "The bot did something weird" is a new failure mode for support teams.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>The mature answer</h3>
+      <p class="lead" style="margin-bottom: 1rem;">Agent <strong>+</strong> scripts, not agent <strong>vs.</strong> scripts.</p>
+      <ul>
+        <li>The agent <strong>orchestrates</strong> — reads messy input, picks the right action.</li>
+        <li>Scripts <strong>execute</strong> — deterministic, tested, verified operations.</li>
+        <li>Humans <strong>approve</strong> — at the boundaries that matter (quotes, escalations, compliance).</li>
+      </ul>
+      <p style="margin-top: 1rem; font-size: 14px;">The agent is the reasoning layer. Everything below it can stay exactly as reliable as it is today.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SLIDE 19: NEXT STEPS -->
+<section class="slide">
+  <div class="slide-number">18</div>
+  <div class="slide-label">Recommendation</div>
+  <h1>Next steps.</h1>
+  <div class="three-col">
+    <div>
+      <h3>Weeks 1–2</h3>
+      <p><strong>Level 2 pilot.</strong> Add CRM integration. Agent silently qualifies and logs leads from the existing chatbot traffic. Zero customer-facing change. Measure lift.</p>
+    </div>
+    <div>
+      <h3>Weeks 3–6</h3>
+      <p><strong>Level 3 pilot.</strong> Wire up sample requests and spec emailing to real backends. Human-approval gate on all outbound actions. Measure deflection from sales ops.</p>
+    </div>
+    <div>
+      <h3>Quarter 2</h3>
+      <p><strong>Level 4 pilot.</strong> Sentiment + escalation for QA incidents. This is where customer CSAT moves. Requires Slack/Teams integration and QA ticketing API.</p>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top: 2rem;">
+    <p><strong>What we need from leadership:</strong> sign-off to integrate with CRM (read + write), sample-request system (write), and Slack (write). Each is a day of plumbing. The agent is already built.</p>
+  </div>
+
+  <div style="margin-top: auto; padding-top: 2rem; font-size: 14px; color: var(--ink-soft); border-top: 1px solid var(--rule);">
+    Questions? Live demo ready on request.
+  </div>
+</section>
+
+</div>
+
+<div class="nav">
+  <button onclick="prev()">← Prev</button>
+  <span class="progress"><span id="cur">1</span> / <span id="total">19</span></span>
+  <button onclick="next()">Next →</button>
+</div>
+<div class="key-hint">← → or Space to navigate · P to print</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  let idx = 0;
+  document.getElementById('total').textContent = slides.length;
+
+  function show(i) {
+    idx = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, n) => s.classList.toggle('active', n === idx));
+    document.getElementById('cur').textContent = idx + 1;
+    window.scrollTo(0, 0);
+  }
+  function next() { show(idx + 1); }
+  function prev() { show(idx - 1); }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { next(); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { prev(); e.preventDefault(); }
+    else if (e.key === 'Home') { show(0); }
+    else if (e.key === 'End') { show(slides.length - 1); }
+    else if (e.key.toLowerCase() === 'p') {
+      // Show all slides for printing, then restore
+      slides.forEach(s => s.classList.add('active'));
+      window.print();
+      setTimeout(() => show(idx), 100);
+    }
+  });
+</script>
+
+</body>
+</html>
